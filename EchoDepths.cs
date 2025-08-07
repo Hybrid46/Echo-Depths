@@ -1,10 +1,9 @@
-﻿using System;
-using System.Numerics;
+﻿using System.Numerics;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 using static Settings;
 
-public class Program
+public class EchoDepths
 {
     public static Camera3D camera;
     private static Chunk[,,] chunks = new Chunk[worldSize, worldSize, worldSize];
@@ -12,18 +11,19 @@ public class Program
     public static void Main()
     {
         InitWindow(1280, 720, "3D Terrain with Marching Cubes");
+        SetWindowFocused();
         SetTargetFPS(60);
-
         SetMouseCursor(MouseCursor.Crosshair);
 
         SetupCamera();
 
+        InitializeRandomPerlinOffset();
         GenerateTerrain();
 
         while (!WindowShouldClose())
         {
-            // Camera controls
             UpdateCamera(ref camera, CameraMode.Free);
+
             SetMousePosition(GetScreenWidth() / 2, GetScreenHeight() / 2);
 
             BeginDrawing();
@@ -36,7 +36,7 @@ public class Program
                 chunk.Draw();
             }
 
-            DrawGrid(100, 10.0f);
+            DrawGrid(100, gridSize);
             EndMode3D();
 
             DrawText("3D Terrain with Marching Cubes", 10, 10, 20, Color.Lime);
@@ -46,7 +46,6 @@ public class Program
             EndDrawing();
         }
 
-        // Unload chunks and close window
         foreach (Chunk chunk in chunks)
         {
             chunk.Unload();
@@ -72,11 +71,24 @@ public class Program
 
     private static void SetupCamera()
     {
-        camera = new Camera3D();
-        camera.Position = new Vector3(50, 50, 50);
-        camera.Target = new Vector3(0, 0, 0);
-        camera.Up = new Vector3(0, 1, 0);
-        camera.FovY = 60.0f;
-        camera.Projection = CameraProjection.Perspective;
+        camera = new Camera3D()
+        {
+            Position = new Vector3(50, 50, 50),
+            Target = new Vector3(0, 0, 0),
+            Up = new Vector3(0, 1, 0),
+            FovY = FOV,
+            Projection = CameraProjection.Perspective
+        };
+    }
+
+    private static void InitializeRandomPerlinOffset()
+    {
+        Random rnd = new Random();
+
+        perlinOffset = new Vector3(
+            rnd.NextSingle() * 10000000f,
+            rnd.NextSingle() * 10000000f,
+            rnd.NextSingle() * 10000000f
+        );
     }
 }

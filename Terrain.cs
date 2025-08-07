@@ -25,9 +25,9 @@ public class Terrain
                 {
                     Vector3 position = new Vector3(x - gridSize / 2, y - gridSize / 2, z - gridSize / 2);
                     float density = perlinNoise.get3DPerlinNoise(new Vector3(
-                        (worldPosition.X + x) * noiseScale,
-                        (worldPosition.Y + y) * noiseScale,
-                        (worldPosition.Z + z) * noiseScale), frequency);
+                        (worldPosition.X + x + perlinOffset.X) * perlinScale,
+                        (worldPosition.Y + y + perlinOffset.Y) * perlinScale,
+                        (worldPosition.Z + z + perlinOffset.Z) * perlinScale), perlinFrequency);
 
                     points[x, y, z] = new Point(position, density);
                 }

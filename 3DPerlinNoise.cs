@@ -1,6 +1,6 @@
-using System.Collections;
-using System.Collections.Generic;
+//Original source: https://github.com/formalatist/Perlin/blob/master/src/Perlin.cs
 using System.Numerics;
+
 public class perlinNoise
 {
     private static int[] permutation = {
@@ -103,16 +103,7 @@ public class perlinNoise
         int permutationY10 = permutation[permutationX1 + flooredPointY0];
         int permutationY01 = permutation[permutationX0 + flooredPointY1];
         int permutationY11 = permutation[permutationX1 + flooredPointY1];
-        /*
-                int permutationZ000 = permutation[permutationY00 + flooredPointZ0];
-                int permutationZ100 = permutation[permutationY10 + flooredPointZ0];
-                int permutationZ010 = permutation[permutationY01 + flooredPointZ0];
-                int permutationZ110 = permutation[permutationY11 + flooredPointZ0];
-                int permutationZ001 = permutation[permutationY00 + flooredPointZ1];
-                int permutationZ101 = permutation[permutationY01 + flooredPointZ1];
-                int permutationZ011 = permutation[permutationY10 + flooredPointZ1];
-                int permutationZ111 = permutation[permutationY11 + flooredPointZ1];
-        */
+        
         Vector3 direction000 = directions[permutation[permutationY00 + flooredPointZ0] & directionCount];
         Vector3 direction100 = directions[permutation[permutationY10 + flooredPointZ0] & directionCount];
         Vector3 direction010 = directions[permutation[permutationY01 + flooredPointZ0] & directionCount];
@@ -121,18 +112,7 @@ public class perlinNoise
         Vector3 direction101 = directions[permutation[permutationY10 + flooredPointZ1] & directionCount];
         Vector3 direction011 = directions[permutation[permutationY01 + flooredPointZ1] & directionCount];
         Vector3 direction111 = directions[permutation[permutationY11 + flooredPointZ1] & directionCount];
-
-        /*
-                Vector3 direction000 = directions[permutationZ000 & directionCount];
-                Vector3 direction100 = directions[permutationZ100 & directionCount];
-                Vector3 direction010 = directions[permutationZ010 & directionCount];
-                Vector3 direction110 = directions[permutationZ110 & directionCount];
-                Vector3 direction001 = directions[permutationZ001 & directionCount];
-                Vector3 direction101 = directions[permutationZ101 & directionCount];
-                Vector3 direction011 = directions[permutationZ011 & directionCount];
-                Vector3 direction111 = directions[permutationZ111 & directionCount];
-        */
-
+        
         float value000 = scalar(direction000, new Vector3(distanceX0, distanceY0, distanceZ0));
         float value100 = scalar(direction100, new Vector3(distanceX1, distanceY0, distanceZ0));
         float value010 = scalar(direction010, new Vector3(distanceX0, distanceY1, distanceZ0));
