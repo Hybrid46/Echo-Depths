@@ -9,7 +9,7 @@ public class Program
     static Model terrainModel;
     static Model terrainModel2;
     static float isolevel = 0.5f;
-    static int gridSize = 32;
+    static int gridSize = 33;
     static float noiseScale = 1f;
 
     public static void Main()
