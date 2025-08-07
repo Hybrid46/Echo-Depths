@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using Raylib_cs;
+using static Raylib_cs.Raylib;
 
 public class MarchingCubes
 {
@@ -11,15 +12,11 @@ public class MarchingCubes
 
     private Vector3[] _vertexList;
     private Point[] _initPoints;
-    private Mesh _mesh;
     private int[,,] _cubeIndexes;
 
     public MarchingCubes(Point[,,] points, float isolevel)
     {
         _isolevel = isolevel;
-
-        _mesh = new Mesh();
-
         _vertexIndex = 0;
 
         _vertexList = new Vector3[12];
@@ -145,15 +142,21 @@ public class MarchingCubes
             vertexPositionArray[_vertexIndex++] = vertex.Z;
         }
 
-        Mesh mesh = new Mesh
-        {
-            //Vertices = vertexPositionArray,
-            VertexCount = _vertices.Length,
-            TriangleCount = indices.Length / 3
-        };
+        return GenerateMesh(_vertices, _triangles);
+    }
 
-        //Raylib.GenMeshNormals(ref mesh);
-        //Raylib.UpdateMeshBuffer(ref mesh, indices, 0, MeshBufferType.Element);
+    private Mesh GenerateMesh(Vector3[] _vertices, int[] _triangles)
+    {
+        Mesh mesh = new Mesh(_vertices.Length, _triangles.Length / 3);
+        mesh.AllocVertices();
+        Span<Vector3> vertices = mesh.VerticesAs<Vector3>();
+
+        for (int t = 0; t < _triangles.Length; t += 3)
+        {
+            vertices[t] = _vertices[_triangles[t]];
+            vertices[t + 1] = _vertices[_triangles[t + 1]];
+            vertices[t + 2] = _vertices[_triangles[t + 2]];
+        }
 
         return mesh;
     }

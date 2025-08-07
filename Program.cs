@@ -86,6 +86,9 @@ public class Program
         // Generate mesh
         MarchingCubes mc = new MarchingCubes(points, isolevel);
         Mesh mesh = mc.CreateMeshData(points);
+
+        UploadMesh(ref mesh, false);
+
         terrainModel = LoadModelFromMesh(mesh);
     }
 
