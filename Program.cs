@@ -7,9 +7,10 @@ public class Program
 {
     static Camera3D camera;
     static Model terrainModel;
+    static Model terrainModel2;
     static float isolevel = 0.5f;
     static int gridSize = 32;
-    static float noiseScale = 0.1f;
+    static float noiseScale = 1f;
 
     public static void Main()
     {
@@ -18,14 +19,15 @@ public class Program
 
         // Setup camera
         camera = new Camera3D();
-        camera.Position= new Vector3(50, 50, 50);
+        camera.Position = new Vector3(50, 50, 50);
         camera.Target = new Vector3(0, 0, 0);
         camera.Up = new Vector3(0, 1, 0);
         camera.FovY = 45.0f;
         camera.Projection = CameraProjection.Perspective;
 
         // Generate terrain
-        GenerateTerrain();
+        terrainModel = GenerateTerrain(Vector3.Zero);
+        terrainModel2 = GenerateTerrain(new Vector3(32, 0, 0));
 
         while (!WindowShouldClose())
         {
@@ -36,7 +38,9 @@ public class Program
             {
                 // Regenerate terrain
                 UnloadModel(terrainModel);
-                GenerateTerrain();
+                UnloadModel(terrainModel2);
+                GenerateTerrain(Vector3.Zero);
+                GenerateTerrain(new Vector3(32, 0, 0));
             }
 
             // Adjust isolevel
@@ -49,6 +53,7 @@ public class Program
 
             BeginMode3D(camera);
             DrawModel(terrainModel, Vector3.Zero, 1.0f, Color.Green);
+            DrawModel(terrainModel2, new Vector3(32, 0, 0), 1.0f, Color.Green);
             DrawGrid(100, 10.0f);
             EndMode3D();
 
@@ -62,10 +67,11 @@ public class Program
         }
 
         UnloadModel(terrainModel);
+        UnloadModel(terrainModel2);
         CloseWindow();
     }
 
-    static void GenerateTerrain()
+    static Model GenerateTerrain(Vector3 worldPosition)
     {
         // Create 3D grid of points
         Point[,,] points = new Point[gridSize, gridSize, gridSize];
@@ -77,7 +83,8 @@ public class Program
                 for (int z = 0; z < gridSize; z++)
                 {
                     Vector3 position = new Vector3(x - gridSize / 2, y - gridSize / 2, z - gridSize / 2);
-                    float density = Perlin3D(x * noiseScale, y * noiseScale, z * noiseScale);
+                    float density = Perlin3D((worldPosition.X + x) * noiseScale, (worldPosition.Y + y) * noiseScale, (worldPosition.Z + z) * noiseScale);
+                    //float density = y > gridSize / 2 ? 0f : 1f;
                     points[x, y, z] = new Point(position, density);
                 }
             }
@@ -89,16 +96,18 @@ public class Program
 
         UploadMesh(ref mesh, false);
 
-        terrainModel = LoadModelFromMesh(mesh);
+        return LoadModelFromMesh(mesh);
     }
 
     // 3D Perlin Noise implementation
     static float Perlin3D(float x, float y, float z)
     {
-        float ab = MathF.Cos(x * 0.1f) + MathF.Sin(y * 0.1f);
-        float bc = MathF.Sin(y * 0.1f) + MathF.Cos(z * 0.1f);
-        float ca = MathF.Cos(z * 0.1f) + MathF.Sin(x * 0.1f);
+        //float ab = MathF.Cos(x * 0.1f) + MathF.Sin(y * 0.1f);
+        //float bc = MathF.Sin(y * 0.1f) + MathF.Cos(z * 0.1f);
+        //float ca = MathF.Cos(z * 0.1f) + MathF.Sin(x * 0.1f);
 
-        return (ab + bc + ca) / 3.0f;
+        //return (ab + bc + ca) / 3.0f;
+
+        return perlinNoise.get3DPerlinNoise(new Vector3(x, y, z), 0.1f);
     }
 }
