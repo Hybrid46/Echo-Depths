@@ -14,6 +14,8 @@ public class Program
         InitWindow(1280, 720, "3D Terrain with Marching Cubes");
         SetTargetFPS(60);
 
+        SetMouseCursor(MouseCursor.Crosshair);
+
         SetupCamera();
 
         GenerateTerrain();
@@ -22,6 +24,7 @@ public class Program
         {
             // Camera controls
             UpdateCamera(ref camera, CameraMode.Free);
+            SetMousePosition(GetScreenWidth() / 2, GetScreenHeight() / 2);
 
             BeginDrawing();
             ClearBackground(Color.Black);
