@@ -1,0 +1,54 @@
+﻿using Raylib_cs;
+using static Raylib_cs.Raylib;
+using System;
+using System.Numerics;
+using static Settings;
+
+public class Terrain
+{
+    Model model;
+
+    public Terrain(Vector3 worldPosition)
+    {
+        model = GenerateTerrain(worldPosition);
+    }
+
+    public Model GenerateTerrain(Vector3 worldPosition)
+    {
+        Point[,,] points = new Point[gridSize, gridSize, gridSize];
+
+        for (int x = 0; x < gridSize; x++)
+        {
+            for (int y = 0; y < gridSize; y++)
+            {
+                for (int z = 0; z < gridSize; z++)
+                {
+                    Vector3 position = new Vector3(x - gridSize / 2, y - gridSize / 2, z - gridSize / 2);
+                    float density = perlinNoise.get3DPerlinNoise(new Vector3(
+                        (worldPosition.X + x) * noiseScale,
+                        (worldPosition.Y + y) * noiseScale,
+                        (worldPosition.Z + z) * noiseScale), frequency);
+
+                    points[x, y, z] = new Point(position, density);
+                }
+            }
+        }
+
+        MarchingCubes mc = new MarchingCubes(points, isolevel);
+        Mesh mesh = mc.CreateMeshData(points);
+
+        UploadMesh(ref mesh, false);
+
+        return LoadModelFromMesh(mesh);
+    }
+
+    public void Draw(Vector3 worldPosition)
+    {
+        DrawModel(model, worldPosition, 1.0f, Color.Green);
+    }
+
+    public void Unload()
+    {
+        UnloadModel(model);
+    }
+}
