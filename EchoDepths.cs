@@ -1,4 +1,5 @@
 ﻿using Raylib_cs;
+using System.Diagnostics;
 using System.Numerics;
 using static Raylib_cs.Raylib;
 using static Settings;
@@ -19,20 +20,39 @@ public class EchoDepths
     private static int waveMaxDistanceLoc;
     private static int waveWidthLoc;
     private static int cameraPositionLoc;
-    private static int frameCount = 0;
     private static float waveProgress = 0.0f;
+
+    //Gameplay Loop variables
+    static float accumulator = 0f;
+    static int ups = 0;
+    static int upsCount = 0;
+    static double upsTimer = 0;
+
+    // Performance metrics
+    static double totalFrameTimeMs = 0;
+    static double minFrameTime = double.MaxValue;
+    static double maxFrameTime = 0;
+    static double avgFrameTime = 0;
+    static int frameCount = 0;
+    static Stopwatch frameTimer = new Stopwatch();
 
     //private static RenderTexture2D target = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
 
     public static void Main()
     {
-        InitWindow(1280, 720, "3D Terrain with Marching Cubes");
-        
+        LoadSettings();
+
+        InitWindow(screenWidth == 0 ? GetScreenWidth() : screenWidth, screenWidth == 0 ? GetScreenWidth() : screenWidth, "3D Terrain with Marching Cubes");
+
         SetConfigFlags(ConfigFlags.VSyncHint);
         SetConfigFlags(ConfigFlags.Msaa4xHint);
 
+        HideCursor();
+        SetWindowPosition(0, 0);
+        if (borderlessWindowed) ToggleBorderlessWindowed();
+
         SetWindowFocused();
-        SetTargetFPS(60);
+        SetTargetFPS(targetFPS);
         SetMouseCursor(MouseCursor.Crosshair);
 
         SetupCamera();
@@ -40,40 +60,64 @@ public class EchoDepths
         InitializeRandomPerlinOffset();
         GenerateTerrain();
 
-        while (!WindowShouldClose())
+        frameTimer.Start();
+        Stopwatch gameTimer = Stopwatch.StartNew();
+        double lastTime = gameTimer.Elapsed.TotalSeconds;
+        double currentTime = lastTime;
+
+        while (!Raylib.WindowShouldClose())
         {
-            BeginBlendMode(BlendMode.Alpha);
-            UpdateCamera(ref camera, CameraMode.Free);
+            // Calculate frame time
+            currentTime = gameTimer.Elapsed.TotalSeconds;
+            double frameTime = currentTime - lastTime;
+            lastTime = currentTime;
 
-            SetMousePosition(GetScreenWidth() / 2, GetScreenHeight() / 2);
+            // Convert to milliseconds for metrics
+            totalFrameTimeMs = frameTime * 1000.0;
 
-            //BeginTextureMode(target);
-            ClearBackground(Color.Black);
+            // Update performance stats
+            if (totalFrameTimeMs < minFrameTime) minFrameTime = totalFrameTimeMs;
+            if (totalFrameTimeMs > maxFrameTime) maxFrameTime = totalFrameTimeMs;
 
-            BeginMode3D(camera);
-
-            foreach (Chunk chunk in chunks)
-            {
-                chunk.Draw();
-            }
-            
-            UpdateSonarEffect();
-
-            DrawGrid(100, gridSize);
-            EndMode3D();
-            //EndTextureMode();
-
-            //BeginShaderMode(shaderBloom);
-            //Bloom post process effect
-            //EndShaderMode();
-
-            BeginDrawing();
-            DrawText("3D Terrain with Marching Cubes", 10, 10, 20, Color.Lime);
-            DrawText("Controls: WASD to move, Mouse to look", 10, 40, 20, Color.Yellow);
-            DrawFPS(10, 130);
-
-            EndDrawing();
             frameCount++;
+            if (frameCount >= 60)
+            {
+                avgFrameTime = (avgFrameTime * 0.9) + (totalFrameTimeMs * 0.1);
+                frameCount = 0;
+            }
+
+            // Accumulate time for UPS
+            accumulator += (float)frameTime;
+            double updateStartTime = gameTimer.Elapsed.TotalSeconds;
+
+            // Fixed timestep updates for game logic
+            while (accumulator >= fixedDeltaTime)
+            {
+                using (PerformanceMonitor.Measure(t => PerformanceMonitor.FixedUpdateTime = t))
+                {
+                    FixedUpdate();
+                }
+
+                accumulator -= fixedDeltaTime;
+                upsCount++;
+            }
+
+            // Update UPS counter every second
+            upsTimer += frameTime;
+            if (upsTimer >= 1.0)
+            {
+                ups = upsCount;
+                upsCount = 0;
+                upsTimer -= 1.0;
+            }
+
+            // Only render if we're not running behind on updates
+            if (accumulator < fixedDeltaTime * 3)
+            {
+                RenderUpdate();
+            }
+
+            frameTimer.Restart();
         }
 
         foreach (Chunk chunk in chunks)
@@ -83,6 +127,75 @@ public class EchoDepths
 
         UnloadShader(sonarShader);
         CloseWindow();
+    }
+
+    private static void FixedUpdate()
+    {
+        // Update game logic here -> key press etc
+    }
+
+    private static void RenderUpdate()
+    {
+        BeginBlendMode(BlendMode.Alpha);
+        UpdateCamera(ref camera, CameraMode.Free);
+
+        SetMousePosition(GetScreenWidth() / 2, GetScreenHeight() / 2);
+
+        using (PerformanceMonitor.Measure(t => PerformanceMonitor.RenderTime = t))
+        {
+            //BeginTextureMode(target);
+            ClearBackground(Color.Black);
+
+            BeginMode3D(camera);
+
+            foreach (Chunk chunk in chunks)
+            {
+                chunk.Draw();
+            }
+
+            UpdateSonarEffect();
+
+            //DrawGrid(100, gridSize);
+            EndMode3D();
+            //EndTextureMode();
+        }
+
+        using (PerformanceMonitor.Measure(t => PerformanceMonitor.PostProcessTime = t))
+        {
+            //BeginShaderMode(shaderBloom);
+            //Bloom post process effect
+            //EndShaderMode();
+        }
+
+        BeginDrawing();
+        DrawPerformanceMetrics();
+        EndDrawing();
+    }
+
+    static void DrawPerformanceMetrics()
+    {
+        int startX = 10;
+        int startY = 40;
+        int lineHeight = 20;
+        int line = 1;
+
+        // Draw background panel
+        Raylib.DrawRectangle(startX - 5, startY - 5, 320, 230, new Color(0, 0, 0, 180));
+        Raylib.DrawRectangleLines(startX - 5, startY - 5, 320, 230, Color.DarkGray);
+
+        // Draw metrics
+        Raylib.DrawText($"{nameof(PerformanceMonitor.FixedUpdateTime)}: {PerformanceMonitor.FixedUpdateTime:F2} ms", startX, startY, lineHeight, Color.Green);
+        Raylib.DrawText($"{nameof(PerformanceMonitor.RenderTime)}: {PerformanceMonitor.RenderTime:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Green);
+        Raylib.DrawText($"{nameof(PerformanceMonitor.PostProcessTime)}: {PerformanceMonitor.PostProcessTime:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Green);
+
+        Raylib.DrawText($"Total Frame time: {totalFrameTimeMs:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Yellow);
+        Raylib.DrawText($"FPS: {Raylib.GetFPS()}", startX, startY + lineHeight * line++, lineHeight, Color.Yellow);
+        Raylib.DrawText($"UPS: {ups}", startX, startY + lineHeight * line++, lineHeight, Color.SkyBlue);
+
+        // Min/Max/Avg
+        Raylib.DrawText($"Min: {minFrameTime:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Orange);
+        Raylib.DrawText($"Max: {maxFrameTime:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Orange);
+        Raylib.DrawText($"Avg: {avgFrameTime:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Orange);
     }
 
     private static void GenerateTerrain()
@@ -200,7 +313,7 @@ public class EchoDepths
 
         // Load shader from memory
         sonarShader = LoadShaderFromMemory(vs, fs);
-        
+
         // Get uniform locations
         waveProgressLoc = GetShaderLocation(sonarShader, "waveProgress");
         waveMaxDistanceLoc = GetShaderLocation(sonarShader, "waveMaxDistance");
@@ -221,7 +334,7 @@ public class EchoDepths
 
         float waveWidth = 50.0f;
         SetShaderValue(sonarShader, waveWidthLoc, waveWidth, ShaderUniformDataType.Float);
-        
+
         float fresnelPower = 4.0f;
         float fresnelIntensity = 1.0f;
         SetShaderValue(sonarShader, fresnelPowerLoc, fresnelPower, ShaderUniformDataType.Float);
@@ -230,7 +343,7 @@ public class EchoDepths
 
     private static void UpdateSonarEffect()
     {
-        const int sonarFrequency = 180; // Trigger sonar every 180 frames
+        const int sonarFrequency = 60; // Trigger sonar every 180 frames
 
         // Trigger sonar every 60 frames
         if (frameCount % sonarFrequency == 0)
