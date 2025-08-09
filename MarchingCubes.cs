@@ -1,7 +1,5 @@
 ﻿using System.Numerics;
 using Raylib_cs;
-using static Raylib_cs.Raylib;
-using System.Collections.Generic;
 
 public class MarchingCubes
 {
@@ -102,6 +100,7 @@ public class MarchingCubes
         Mesh mesh = new Mesh(_verticesList.Count, _indicesList.Count / 3);
         mesh.AllocVertices();
         mesh.AllocIndices();
+        mesh.AllocNormals();
 
         Console.WriteLine($"Vertices: {_verticesList.Count}, Indices: {_indicesList.Count}");
 
@@ -113,7 +112,53 @@ public class MarchingCubes
         for (int i = 0; i < _indicesList.Count; i++)
             indicesSpan[i] = (ushort)_indicesList[i];
 
+        //Normals
+        Vector3[] normals = CalculateNormals();
+
+        Span<Vector3> normalsSpan = mesh.NormalsAs<Vector3>();
+        for (int i = 0; i < normals.Length; i++)
+            normalsSpan[i] = normals[i];
+
         return mesh;
+    }
+
+    private Vector3[] CalculateNormals()
+    {
+        Vector3[] normals = new Vector3[_verticesList.Count];
+
+        // Initialize all normals to zero
+        for (int i = 0; i < normals.Length; i++)
+            normals[i] = Vector3.Zero;
+
+        // Accumulate face normals for each vertex
+        for (int i = 0; i < _indicesList.Count; i += 3)
+        {
+            int i0 = _indicesList[i];
+            int i1 = _indicesList[i + 1];
+            int i2 = _indicesList[i + 2];
+
+            Vector3 v0 = _verticesList[i0];
+            Vector3 v1 = _verticesList[i1];
+            Vector3 v2 = _verticesList[i2];
+
+            Vector3 edge1 = v1 - v0;
+            Vector3 edge2 = v2 - v0;
+            Vector3 normal = Vector3.Cross(edge1, edge2);
+
+            // Add face normal to all three vertices
+            normals[i0] += normal;
+            normals[i1] += normal;
+            normals[i2] += normal;
+        }
+
+        // Normalize all vertex normals
+        for (int i = 0; i < normals.Length; i++)
+        {
+            if (normals[i].LengthSquared() > 0)
+                normals[i] = Vector3.Normalize(normals[i]);
+        }
+
+        return normals;
     }
 
     private int FlattenIndex(int x, int y, int z, int gridSizeX, int gridSizeY)

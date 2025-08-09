@@ -1,5 +1,5 @@
-﻿using System.Numerics;
-using Raylib_cs;
+﻿using Raylib_cs;
+using System.Numerics;
 using static Raylib_cs.Raylib;
 using static Settings;
 
@@ -9,12 +9,20 @@ public class EchoDepths
     private static Chunk[,,] chunks = new Chunk[worldSize, worldSize, worldSize];
 
     private static Shader sonarShader;
+
+    private static int fresnelPowerLoc;
+    private static int fresnelIntensityLoc;
+
+    private static int fogDensityLoc;
+
     private static int waveProgressLoc;
     private static int waveMaxDistanceLoc;
     private static int waveWidthLoc;
     private static int cameraPositionLoc;
     private static int frameCount = 0;
     private static float waveProgress = 0.0f;
+
+    //private static RenderTexture2D target = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
 
     public static void Main()
     {
@@ -38,7 +46,7 @@ public class EchoDepths
 
             SetMousePosition(GetScreenWidth() / 2, GetScreenHeight() / 2);
 
-            BeginDrawing();
+            //BeginTextureMode(target);
             ClearBackground(Color.Black);
 
             BeginMode3D(camera);
@@ -52,7 +60,13 @@ public class EchoDepths
 
             DrawGrid(100, gridSize);
             EndMode3D();
+            //EndTextureMode();
 
+            //BeginShaderMode(shaderBloom);
+            //Bloom post process effect
+            //EndShaderMode();
+
+            BeginDrawing();
             DrawText("3D Terrain with Marching Cubes", 10, 10, 20, Color.Lime);
             DrawText("Controls: WASD to move, Mouse to look", 10, 40, 20, Color.Yellow);
             DrawFPS(10, 130);
@@ -114,55 +128,73 @@ public class EchoDepths
         string vs = @"
         #version 330
         in vec3 vertexPosition;
+        in vec3 vertexNormal;
+
         uniform mat4 mvp;
         uniform mat4 matModel;
+        uniform mat4 matNormal;
+
         out vec3 fragWorldPos;
+        out vec3 fragNormal;
 
         void main()
         {
             vec4 worldPos = matModel * vec4(vertexPosition, 1.0);
             fragWorldPos = worldPos.xyz;
+            fragNormal = normalize(vec3(matNormal * vec4(vertexNormal, 1.0)));
             gl_Position = mvp * worldPos;
         }";
 
-        // Fragment shader with sonar effect
+        // Fragment shader
         string fs = @"
         #version 330
         in vec3 fragWorldPos;
+        in vec3 fragNormal;
         out vec4 finalColor;
 
         uniform vec3 cameraPosition;
         uniform float waveProgress;
         uniform float waveWidth;
         uniform float waveMaxDistance;
+        uniform float fogDensity;
+        uniform float fresnelPower;
+        uniform float fresnelIntensity;
 
         void main()
         {
-            // Base terrain color
-            vec3 baseColor = vec3(0.0, 1.0, 0.0);
-            
-            // Calculate distance from camera
+            // Calculate view direction
+            vec3 viewDir = normalize(cameraPosition - fragWorldPos);
+    
+            // Fresnel effect
+            float fresnel = pow(1.0 - max(dot(normalize(fragNormal), viewDir), 0.0), fresnelPower);
+            fresnel *= fresnelIntensity;
+            vec3 fresnelColor = vec3(1.0, 1.0, 1.0);
+    
+            // Base color with Fresnel
+            vec3 baseColor = mix(vec3(0.0, 1.0, 0.0), fresnelColor, fresnel);
+    
+            // Fog calculation
             float dist = distance(fragWorldPos, cameraPosition);
-            float waveFront = waveProgress * waveMaxDistance;
-            
-            // Calculate sonar effect
-            if (waveProgress > 0.0 && dist <= waveFront && dist >= waveFront - waveWidth)
+            float fogFactor = exp(-dist * fogDensity);
+    
+            // Sonar effect
+            if (waveProgress > 0.0)
             {
-                // Calculate wave intensity
-                float d = (waveFront - dist) / waveWidth;
-                float intensity = smoothstep(0.0, 1.0, d);
-                
-                // Create sonar color (blue to cyan)
-                vec3 sonarColor = mix(vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 1.0), intensity);
-                
-                // Blend with base color
-                finalColor = vec4(mix(baseColor, sonarColor, intensity), 1.0);
+                float waveFront = waveProgress * waveMaxDistance;
+                if (dist <= waveFront && dist >= waveFront - waveWidth)
+                {
+                    float d = (waveFront - dist) / waveWidth;
+                    float intensity = smoothstep(0.0, 1.0, d);
+                    vec3 sonarColor = mix(vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 1.0), intensity);
+                    baseColor = mix(baseColor, sonarColor, intensity);
+                }
             }
-            else
-            {
-                // Default terrain color
-                finalColor = vec4(baseColor, 1.0);
-            }
+    
+            // Apply fog
+            vec3 fogColor = vec3(0.0, 0.2, 0.6);
+            baseColor = mix(fogColor, baseColor, fogFactor);
+    
+            finalColor = vec4(baseColor, 1.0);
         }";
 
         // Load shader from memory
@@ -174,12 +206,25 @@ public class EchoDepths
         waveWidthLoc = GetShaderLocation(sonarShader, "waveWidth");
         cameraPositionLoc = GetShaderLocation(sonarShader, "cameraPosition");
 
+        fresnelPowerLoc = GetShaderLocation(sonarShader, "fresnelPower");
+        fresnelIntensityLoc = GetShaderLocation(sonarShader, "fresnelIntensity");
+
+        fogDensityLoc = GetShaderLocation(sonarShader, "fogDensity");
+
+        float fogDensity = 0.02f;
+        SetShaderValue(sonarShader, fogDensityLoc, fogDensity, ShaderUniformDataType.Float);
+
         // Set constant shader values
         float waveMaxDistance = 100.0f;
         SetShaderValue(sonarShader, waveMaxDistanceLoc, waveMaxDistance, ShaderUniformDataType.Float);
 
         float waveWidth = 30.0f;
         SetShaderValue(sonarShader, waveWidthLoc, waveWidth, ShaderUniformDataType.Float);
+        
+        float fresnelPower = 5.0f;
+        float fresnelIntensity = 1.0f;
+        SetShaderValue(sonarShader, fresnelPowerLoc, fresnelPower, ShaderUniformDataType.Float);
+        SetShaderValue(sonarShader, fresnelIntensityLoc, fresnelIntensity, ShaderUniformDataType.Float);
     }
 
     private static void UpdateSonarEffect()
@@ -206,6 +251,7 @@ public class EchoDepths
         // Update shader uniforms
         SetShaderValue(sonarShader, waveProgressLoc, waveProgress, ShaderUniformDataType.Float);
 
+        DrawLine3D(camera.Position + Vector3.One, camera.Target, Color.Red);
         Vector3 camPos = camera.Position;
         SetShaderValue(sonarShader, cameraPositionLoc, camPos, ShaderUniformDataType.Vec3);
     }

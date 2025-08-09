@@ -5,7 +5,7 @@ using static Settings;
 
 public class Terrain
 {
-    const float modelScale = 1.0f; //TODO works fine only with 2 times
+    const float modelScale = 1.0f;
     Model model;
 
     public Terrain(Vector3 worldPosition, Shader shader)
