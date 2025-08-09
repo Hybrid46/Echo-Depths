@@ -142,7 +142,7 @@ public class EchoDepths
             vec4 worldPos = matModel * vec4(vertexPosition, 1.0);
             fragWorldPos = worldPos.xyz;
             fragNormal = normalize(vec3(matNormal * vec4(vertexNormal, 1.0)));
-            gl_Position = mvp * worldPos;
+            gl_Position = mvp * vec4(vertexPosition, 1.0);
         }";
 
         // Fragment shader
@@ -221,7 +221,7 @@ public class EchoDepths
         float waveWidth = 30.0f;
         SetShaderValue(sonarShader, waveWidthLoc, waveWidth, ShaderUniformDataType.Float);
         
-        float fresnelPower = 5.0f;
+        float fresnelPower = 4.0f;
         float fresnelIntensity = 1.0f;
         SetShaderValue(sonarShader, fresnelPowerLoc, fresnelPower, ShaderUniformDataType.Float);
         SetShaderValue(sonarShader, fresnelIntensityLoc, fresnelIntensity, ShaderUniformDataType.Float);
@@ -251,7 +251,6 @@ public class EchoDepths
         // Update shader uniforms
         SetShaderValue(sonarShader, waveProgressLoc, waveProgress, ShaderUniformDataType.Float);
 
-        DrawLine3D(camera.Position + Vector3.One, camera.Target, Color.Red);
         Vector3 camPos = camera.Position;
         SetShaderValue(sonarShader, cameraPositionLoc, camPos, ShaderUniformDataType.Vec3);
     }
