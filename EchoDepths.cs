@@ -164,6 +164,11 @@ public class EchoDepths
         void main()
         {
             vec3 viewDir = normalize(cameraPosition - fragWorldPos);
+
+            // Backface culling - discard if facing away from camera
+            if (dot(fragNormal, viewDir) <= 0.0) {
+                discard;
+            }
     
             // Fresnel effect
             float fresnel = pow(1.0 - max(dot(normalize(fragNormal), viewDir), 0.0), fresnelPower) * fresnelIntensity;
