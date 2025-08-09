@@ -42,6 +42,7 @@ public class EchoDepths
 
         while (!WindowShouldClose())
         {
+            BeginBlendMode(BlendMode.Alpha);
             UpdateCamera(ref camera, CameraMode.Free);
 
             SetMousePosition(GetScreenWidth() / 2, GetScreenHeight() / 2);
@@ -162,16 +163,13 @@ public class EchoDepths
 
         void main()
         {
-            // Calculate view direction
             vec3 viewDir = normalize(cameraPosition - fragWorldPos);
     
             // Fresnel effect
-            float fresnel = pow(1.0 - max(dot(normalize(fragNormal), viewDir), 0.0), fresnelPower);
-            fresnel *= fresnelIntensity;
-            vec3 fresnelColor = vec3(1.0, 1.0, 1.0);
+            float fresnel = pow(1.0 - max(dot(normalize(fragNormal), viewDir), 0.0), fresnelPower) * fresnelIntensity;
+            vec4 fresnelColor = vec4(0.5, 0.0, 0.0, 0.0) * fresnel;
     
-            // Base color with Fresnel
-            vec3 baseColor = mix(vec3(0.0, 1.0, 0.0), fresnelColor, fresnel);
+            vec4 baseColor = vec4(0.0, 0.0, 0.0, 0.0);
     
             // Fog calculation
             float dist = distance(fragWorldPos, cameraPosition);
@@ -185,16 +183,14 @@ public class EchoDepths
                 {
                     float d = (waveFront - dist) / waveWidth;
                     float intensity = smoothstep(0.0, 1.0, d);
-                    vec3 sonarColor = mix(vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 1.0), intensity);
-                    baseColor = mix(baseColor, sonarColor, intensity);
+                    vec4 sonarColor = mix(vec4(0.5, 0.0, 0.0, 1.0), vec4(0.5, 0.25, 0.0, 1.0), intensity);
+                    baseColor = mix(baseColor, sonarColor + fresnelColor, intensity);
                 }
             }
     
             // Apply fog
-            vec3 fogColor = vec3(0.0, 0.2, 0.6);
-            baseColor = mix(fogColor, baseColor, fogFactor);
-    
-            finalColor = vec4(baseColor, 1.0);
+            vec4 fogColor = vec4(0.0, 0.0, 0.5, 0.0);
+            finalColor = mix(fogColor, baseColor, fogFactor);
         }";
 
         // Load shader from memory
@@ -218,7 +214,7 @@ public class EchoDepths
         float waveMaxDistance = 100.0f;
         SetShaderValue(sonarShader, waveMaxDistanceLoc, waveMaxDistance, ShaderUniformDataType.Float);
 
-        float waveWidth = 30.0f;
+        float waveWidth = 50.0f;
         SetShaderValue(sonarShader, waveWidthLoc, waveWidth, ShaderUniformDataType.Float);
         
         float fresnelPower = 4.0f;
