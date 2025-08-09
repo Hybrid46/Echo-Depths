@@ -17,10 +17,10 @@ public static class Settings
 
     // Display settings
     public static int display = 0;
-    public static int screenWidth = 800;
-    public static int screenHeight = 600;
+    public static int screenWidth = 0;
+    public static int screenHeight = 0;
     public static bool fullscreen = false;
-    public static bool borderlessWindowed = false;
+    public static bool borderlessWindowed = true;
 
     // Performance settings
     public static int targetFPS = 60;
@@ -38,10 +38,10 @@ public static class Settings
     private static void LoadDefaults()
     {
         display = 0;
-        screenWidth = 800;
-        screenHeight = 600;
+        screenWidth = 0;
+        screenHeight = 0;
         fullscreen = false;
-        borderlessWindowed = false;
+        borderlessWindowed = true;
         targetFPS = 60;
         targetUPS = 60;
         moveSpeed = 3.0f;

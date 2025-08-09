@@ -36,6 +36,7 @@ public class EchoDepths
         LoadSettings();
 
         InitWindow(screenWidth == 0 ? GetScreenWidth() : screenWidth, screenWidth == 0 ? GetScreenWidth() : screenWidth, "3D Terrain with Marching Cubes");
+        SetWindowMonitor(display);
 
         SetConfigFlags(ConfigFlags.VSyncHint);
         SetConfigFlags(ConfigFlags.Msaa4xHint);
