@@ -17,6 +17,7 @@ public class Terrain
     public Model GenerateTerrain(Vector3 worldPosition)
     {
         Point[,,] points = new Point[gridSize, gridSize, gridSize];
+        float halfGrid = (gridSize - 1) / 2.0f;
 
         for (int x = 0; x < gridSize; x++)
         {
@@ -24,7 +25,7 @@ public class Terrain
             {
                 for (int z = 0; z < gridSize; z++)
                 {
-                    Vector3 position = new Vector3(x - gridSize / 2, y - gridSize / 2, z - gridSize / 2);
+                    Vector3 position = new Vector3(x - halfGrid, y - halfGrid, z - halfGrid);
                     float density = perlinNoise.get3DPerlinNoise(new Vector3(
                         (worldPosition.X + x + perlinOffset.X) * perlinScale,
                         (worldPosition.Y + y + perlinOffset.Y) * perlinScale,
