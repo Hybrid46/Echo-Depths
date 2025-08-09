@@ -22,19 +22,12 @@ public class EchoDepths
     private static int cameraPositionLoc;
     private static float waveProgress = 0.0f;
 
-    //Gameplay Loop variables
-    static float accumulator = 0f;
     static int ups = 0;
-    static int upsCount = 0;
-    static double upsTimer = 0;
 
-    // Performance metrics
-    static double totalFrameTimeMs = 0;
-    static double minFrameTime = double.MaxValue;
-    static double maxFrameTime = 0;
-    static double avgFrameTime = 0;
-    static int frameCount = 0;
-    static Stopwatch frameTimer = new Stopwatch();
+    // Sonar effect variables
+    private static float sonarTimer = 0f;
+    private const float SONAR_INTERVAL = 2.5f; // Seconds between sonar pulses
+    private static float waveDuration = 2.2f; // Duration of wave effect
 
     //private static RenderTexture2D target = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
 
@@ -60,50 +53,50 @@ public class EchoDepths
         InitializeRandomPerlinOffset();
         GenerateTerrain();
 
+        Stopwatch frameTimer = new Stopwatch();
         frameTimer.Start();
-        Stopwatch gameTimer = Stopwatch.StartNew();
-        double lastTime = gameTimer.Elapsed.TotalSeconds;
-        double currentTime = lastTime;
+        double lastTime = 0;
+        double currentTime = 0;
+        double deltaTime = 0;
+        float accumulator = 0f;
 
-        while (!Raylib.WindowShouldClose())
+        // Performance tracking
+        int frames = 0;
+        double perfTimer = 0;
+        int upsCount = 0;
+        double upsTimer = 0;
+
+        while (!WindowShouldClose())
         {
-            // Calculate frame time
-            currentTime = gameTimer.Elapsed.TotalSeconds;
-            double frameTime = currentTime - lastTime;
+            currentTime = frameTimer.Elapsed.TotalSeconds;
+            deltaTime = currentTime - lastTime;
             lastTime = currentTime;
 
-            // Convert to milliseconds for metrics
-            totalFrameTimeMs = frameTime * 1000.0;
-
-            // Update performance stats
-            if (totalFrameTimeMs < minFrameTime) minFrameTime = totalFrameTimeMs;
-            if (totalFrameTimeMs > maxFrameTime) maxFrameTime = totalFrameTimeMs;
-
-            frameCount++;
-            if (frameCount >= 60)
+            // Update performance metrics
+            frames++;
+            perfTimer += deltaTime;
+            if (perfTimer >= 1.0)
             {
-                avgFrameTime = (avgFrameTime * 0.9) + (totalFrameTimeMs * 0.1);
-                frameCount = 0;
+                PerformanceMonitor.RenderTime = (deltaTime * 1000);
+                DrawFPS(10, 10);
+                perfTimer = 0;
+                frames = 0;
             }
 
-            // Accumulate time for UPS
-            accumulator += (float)frameTime;
-            double updateStartTime = gameTimer.Elapsed.TotalSeconds;
-
-            // Fixed timestep updates for game logic
+            // Fixed timestep updates
+            accumulator += (float)deltaTime;
             while (accumulator >= fixedDeltaTime)
             {
                 using (PerformanceMonitor.Measure(t => PerformanceMonitor.FixedUpdateTime = t))
                 {
                     FixedUpdate();
                 }
-
                 accumulator -= fixedDeltaTime;
                 upsCount++;
             }
 
-            // Update UPS counter every second
-            upsTimer += frameTime;
+            // Update UPS counter
+            upsTimer += deltaTime;
             if (upsTimer >= 1.0)
             {
                 ups = upsCount;
@@ -111,13 +104,17 @@ public class EchoDepths
                 upsTimer -= 1.0;
             }
 
-            // Only render if we're not running behind on updates
-            if (accumulator < fixedDeltaTime * 3)
+            // Update sonar effect
+            UpdateSonarEffect(deltaTime);
+
+            // Render frame
+            using (PerformanceMonitor.Measure(t => PerformanceMonitor.RenderTime = t))
             {
                 RenderUpdate();
             }
 
-            frameTimer.Restart();
+            // Draw performance overlay
+            DrawPerformanceMetrics();
         }
 
         foreach (Chunk chunk in chunks)
@@ -150,10 +147,11 @@ public class EchoDepths
 
             foreach (Chunk chunk in chunks)
             {
-                chunk.Draw();
+                if (chunk.IsVisible(camera, drawDistance))
+                {
+                    chunk.Draw();
+                }
             }
-
-            UpdateSonarEffect();
 
             //DrawGrid(100, gridSize);
             EndMode3D();
@@ -180,22 +178,16 @@ public class EchoDepths
         int line = 1;
 
         // Draw background panel
-        Raylib.DrawRectangle(startX - 5, startY - 5, 320, 230, new Color(0, 0, 0, 180));
-        Raylib.DrawRectangleLines(startX - 5, startY - 5, 320, 230, Color.DarkGray);
+        DrawRectangle(startX - 5, startY - 5, 320, 230, new Color(0, 0, 0, 180));
+        DrawRectangleLines(startX - 5, startY - 5, 320, 230, Color.DarkGray);
 
         // Draw metrics
-        Raylib.DrawText($"{nameof(PerformanceMonitor.FixedUpdateTime)}: {PerformanceMonitor.FixedUpdateTime:F2} ms", startX, startY, lineHeight, Color.Green);
-        Raylib.DrawText($"{nameof(PerformanceMonitor.RenderTime)}: {PerformanceMonitor.RenderTime:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Green);
-        Raylib.DrawText($"{nameof(PerformanceMonitor.PostProcessTime)}: {PerformanceMonitor.PostProcessTime:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Green);
+        DrawText($"{nameof(PerformanceMonitor.FixedUpdateTime)}: {PerformanceMonitor.FixedUpdateTime:F2} ms", startX, startY, lineHeight, Color.Green);
+        DrawText($"{nameof(PerformanceMonitor.RenderTime)}: {PerformanceMonitor.RenderTime:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Green);
+        DrawText($"{nameof(PerformanceMonitor.PostProcessTime)}: {PerformanceMonitor.PostProcessTime:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Green);
 
-        Raylib.DrawText($"Total Frame time: {totalFrameTimeMs:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Yellow);
-        Raylib.DrawText($"FPS: {Raylib.GetFPS()}", startX, startY + lineHeight * line++, lineHeight, Color.Yellow);
-        Raylib.DrawText($"UPS: {ups}", startX, startY + lineHeight * line++, lineHeight, Color.SkyBlue);
-
-        // Min/Max/Avg
-        Raylib.DrawText($"Min: {minFrameTime:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Orange);
-        Raylib.DrawText($"Max: {maxFrameTime:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Orange);
-        Raylib.DrawText($"Avg: {avgFrameTime:F2} ms", startX, startY + lineHeight * line++, lineHeight, Color.Orange);
+        DrawText($"FPS: {GetFPS()}", startX, startY + lineHeight * line++, lineHeight, Color.Yellow);
+        DrawText($"UPS: {ups}", startX, startY + lineHeight * line++, lineHeight, Color.SkyBlue);
     }
 
     private static void GenerateTerrain()
@@ -341,31 +333,30 @@ public class EchoDepths
         SetShaderValue(sonarShader, fresnelIntensityLoc, fresnelIntensity, ShaderUniformDataType.Float);
     }
 
-    private static void UpdateSonarEffect()
+    private static void UpdateSonarEffect(double frameTime)
     {
-        const int sonarFrequency = 60; // Trigger sonar every 180 frames
+        // Update sonar timer
+        sonarTimer += (float)frameTime;
 
-        // Trigger sonar every 60 frames
-        if (frameCount % sonarFrequency == 0)
+        // Trigger new sonar pulse
+        if (sonarTimer >= SONAR_INTERVAL)
         {
-            waveProgress = 0.01f; // Start the wave
+            waveProgress = 0.001f;
+            sonarTimer = 0f;
         }
 
         // Update wave progress
         if (waveProgress > 0)
         {
-            waveProgress += 1f / sonarFrequency;
-
-            if (waveProgress > 1.0f)
+            waveProgress += (float)(frameTime / waveDuration);
+            if (waveProgress >= 1.0f)
             {
-                waveProgress = 0.0f;
+                waveProgress = 0f;
             }
         }
 
         // Update shader uniforms
         SetShaderValue(sonarShader, waveProgressLoc, waveProgress, ShaderUniformDataType.Float);
-
-        Vector3 camPos = camera.Position;
-        SetShaderValue(sonarShader, cameraPositionLoc, camPos, ShaderUniformDataType.Vec3);
+        SetShaderValue(sonarShader, cameraPositionLoc, camera.Position, ShaderUniformDataType.Vec3);
     }
 }
