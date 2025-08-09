@@ -1,15 +1,18 @@
-﻿using System;
+﻿using Raylib_cs;
+using System;
 using System.Numerics;
 
 public class Chunk	
 {
     Vector3 worldPosition;
     Terrain terrain;
+    Shader shader;
 
-    public Chunk(Vector3 worldPosition)
+    public Chunk(Vector3 worldPosition, Shader shader)
 	{
         this.worldPosition = worldPosition;
-        terrain = new Terrain(worldPosition);
+        this.shader = shader;
+        terrain = new Terrain(worldPosition, shader);
     }
 
     public void Draw()

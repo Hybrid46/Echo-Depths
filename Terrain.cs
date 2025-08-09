@@ -1,16 +1,17 @@
 ﻿using Raylib_cs;
 using static Raylib_cs.Raylib;
-using System;
 using System.Numerics;
 using static Settings;
 
 public class Terrain
 {
+    const float modelScale = 1.0f; //TODO works fine only with 2 times
     Model model;
 
-    public Terrain(Vector3 worldPosition)
+    public Terrain(Vector3 worldPosition, Shader shader)
     {
         model = GenerateTerrain(worldPosition);
+        SetMaterialShader(ref model, 0, ref shader);
     }
 
     public Model GenerateTerrain(Vector3 worldPosition)
@@ -36,7 +37,7 @@ public class Terrain
 
         MarchingCubes mc = new MarchingCubes(points, isolevel);
         Mesh mesh = mc.CreateMeshData(points);
-
+        
         UploadMesh(ref mesh, false);
 
         return LoadModelFromMesh(mesh);
@@ -44,7 +45,7 @@ public class Terrain
 
     public void Draw(Vector3 worldPosition)
     {
-        DrawModel(model, worldPosition, 1.0f, Color.Green);
+        DrawModel(model, worldPosition, modelScale, Color.Green);
     }
 
     public void Unload()
