@@ -48,6 +48,10 @@ public class EchoDepths
         SetTargetFPS(targetFPS);
         SetMouseCursor(MouseCursor.Crosshair);
 
+        BeginDrawing();
+        DrawText($"Loading...", 10, 40, 20, Color.Green);
+        EndDrawing();
+
         SetupCamera();
         LoadSonarShader();
         InitializeRandomPerlinOffset();
@@ -78,7 +82,6 @@ public class EchoDepths
             if (perfTimer >= 1.0)
             {
                 PerformanceMonitor.RenderTime = (deltaTime * 1000);
-                DrawFPS(10, 10);
                 perfTimer = 0;
                 frames = 0;
             }
@@ -112,9 +115,6 @@ public class EchoDepths
             {
                 RenderUpdate();
             }
-
-            // Draw performance overlay
-            DrawPerformanceMetrics();
         }
 
         foreach (Chunk chunk in chunks)
