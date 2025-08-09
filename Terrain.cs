@@ -17,7 +17,7 @@ public class Terrain
     public Model GenerateTerrain(Vector3 worldPosition)
     {
         Point[,,] points = new Point[gridSize, gridSize, gridSize];
-        float halfGrid = (gridSize - 1) / 2.0f;
+        float halfGrid = gridSize / 2.0f;
 
         for (int x = 0; x < gridSize; x++)
         {
