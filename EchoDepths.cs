@@ -18,16 +18,18 @@ public class EchoDepths
 
     private static int waveProgressLoc;
     private static int waveMaxDistanceLoc;
-    private static int waveWidthLoc;
     private static int cameraPositionLoc;
+    private static int waveFadeInWidthLoc;
+    private static int waveFadeOutWidthLoc;
+
     private static float waveProgress = 0.0f;
 
     static int ups = 0;
 
     // Sonar effect variables
     private static float sonarTimer = 0f;
-    private const float SONAR_INTERVAL = 2.5f; // Seconds between sonar pulses
-    private static float waveDuration = 2.2f; // Duration of wave effect
+    private const float SONAR_INTERVAL = 3f; // Seconds between sonar pulses
+    private static float waveDuration = 2.8f; // Duration of wave effect
 
     //private static RenderTexture2D target = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
 
@@ -50,7 +52,7 @@ public class EchoDepths
         SetMouseCursor(MouseCursor.Crosshair);
 
         BeginDrawing();
-        DrawText($"Loading...", 10, 40, 20, Color.Green);
+        DrawText($"Loading...", GetScreenWidth() / 2, GetScreenHeight() / 2, 20, Color.Green);
         EndDrawing();
 
         SetupCamera();
@@ -261,8 +263,9 @@ public class EchoDepths
 
         uniform vec3 cameraPosition;
         uniform float waveProgress;
-        uniform float waveWidth;
         uniform float waveMaxDistance;
+        uniform float waveFadeInWidth;
+        uniform float waveFadeOutWidth;
         uniform float fogDensity;
         uniform float fresnelPower;
         uniform float fresnelIntensity;
@@ -286,15 +289,28 @@ public class EchoDepths
             float dist = distance(fragWorldPos, cameraPosition);
             float fogFactor = exp(-dist * fogDensity);
     
-            // Sonar effect
+            // Sonar effect with smoother fade-out
             if (waveProgress > 0.0)
             {
                 float waveFront = waveProgress * waveMaxDistance;
-                if (dist <= waveFront && dist >= waveFront - waveWidth)
+                float totalWidth = waveFadeInWidth + waveFadeOutWidth;
+                float waveBack = waveFront - totalWidth;
+                float fadeInEnd = waveBack + waveFadeInWidth;
+                float fadeOutStart = waveFront - waveFadeOutWidth;
+
+                if (dist >= waveBack && dist <= waveFront)
                 {
-                    float d = (waveFront - dist) / waveWidth;
-                    float intensity = smoothstep(0.0, 1.0, d);
-                    vec4 sonarColor = mix(vec4(0.5, 0.0, 0.0, 1.0), vec4(0.5, 0.25, 0.0, 1.0), intensity);
+                    // Fade-in remains linear
+                    float fadeIn = smoothstep(waveBack, fadeInEnd, dist);
+                
+                    // Smoother fade-out using quadratic easing
+                    float fadeOut = smoothstep(fadeOutStart, waveFront, dist);
+                    float fadeOutQuad = fadeOut * fadeOut; // Quadratic easing
+                
+                    // Combine effects
+                    float intensity = min(fadeIn, 1.0 - fadeOutQuad);
+
+                    vec4 sonarColor = mix(vec4(0.5, 0.0, 0.0, 1.0), vec4(0.5, 0.3, 0.0, 1.0), intensity);
                     baseColor = mix(baseColor, sonarColor + fresnelColor, intensity);
                 }
             }
@@ -310,7 +326,8 @@ public class EchoDepths
         // Get uniform locations
         waveProgressLoc = GetShaderLocation(sonarShader, "waveProgress");
         waveMaxDistanceLoc = GetShaderLocation(sonarShader, "waveMaxDistance");
-        waveWidthLoc = GetShaderLocation(sonarShader, "waveWidth");
+        waveFadeInWidthLoc = GetShaderLocation(sonarShader, "waveFadeInWidth");
+        waveFadeOutWidthLoc = GetShaderLocation(sonarShader, "waveFadeOutWidth");
         cameraPositionLoc = GetShaderLocation(sonarShader, "cameraPosition");
 
         fresnelPowerLoc = GetShaderLocation(sonarShader, "fresnelPower");
@@ -325,8 +342,10 @@ public class EchoDepths
         float waveMaxDistance = 100.0f;
         SetShaderValue(sonarShader, waveMaxDistanceLoc, waveMaxDistance, ShaderUniformDataType.Float);
 
-        float waveWidth = 50.0f;
-        SetShaderValue(sonarShader, waveWidthLoc, waveWidth, ShaderUniformDataType.Float);
+        float waveFadeInWidth = 20.0f;  // Fade-in distance
+        float waveFadeOutWidth = 50.0f; // Fade-out distance
+        SetShaderValue(sonarShader, waveFadeInWidthLoc, waveFadeInWidth, ShaderUniformDataType.Float);
+        SetShaderValue(sonarShader, waveFadeOutWidthLoc, waveFadeOutWidth, ShaderUniformDataType.Float);
 
         float fresnelPower = 4.0f;
         float fresnelIntensity = 1.0f;
